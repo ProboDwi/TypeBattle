@@ -46,6 +46,10 @@ const levelLeaderboard = readFileSync(
   resolve("supabase/migrations/202607240016_level_leaderboard.sql"),
   "utf8",
 );
+const hostControlledStart = readFileSync(
+  resolve("supabase/migrations/202607240017_host_controlled_race_start.sql"),
+  "utf8",
+);
 
 describe("Supabase integration contract", () => {
   it("creates profiles automatically after registration", () => {
@@ -134,5 +138,17 @@ describe("Supabase integration contract", () => {
     expect(levelLeaderboard).toContain(
       "grant select on public.leaderboard_level to anon, authenticated",
     );
+  });
+  it("keeps readiness separate from the host-controlled race start", () => {
+    expect(hostControlledStart).toContain(
+      "create or replace function public.set_race_ready",
+    );
+    expect(hostControlledStart).toContain(
+      "Starting is always an explicit host",
+    );
+    expect(hostControlledStart).toContain(
+      "jsonb_build_object('ready', p_ready, 'started', false)",
+    );
+    expect(hostControlledStart).not.toContain("status = 'countdown'");
   });
 });

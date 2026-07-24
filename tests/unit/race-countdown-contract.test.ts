@@ -21,4 +21,14 @@ describe("race countdown", () => {
     expect(raceClient).toContain("started:");
     expect(raceClient).toContain('initialRoom.status === "racing"');
   });
+
+  it("applies and broadcasts the server countdown without waiting for refresh", () => {
+    expect(raceClient).toContain("const applyRaceCountdown");
+    expect(raceClient).toContain(
+      '.on("broadcast", { event: "race_countdown" }',
+    );
+    expect(raceClient).toContain(
+      'await broadcast("race_countdown", result.data)',
+    );
+  });
 });

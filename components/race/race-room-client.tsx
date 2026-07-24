@@ -231,6 +231,53 @@ export function RaceRoomClient({
     router.refresh();
   }, [router]);
 
+  const applyRaceCountdown = useCallback((payload: BroadcastPayload) => {
+    const startsAt = String(payload.startsAt ?? "");
+    const rawText = payload.text as Record<string, unknown> | null;
+    if (
+      !startsAt ||
+      !Number.isFinite(new Date(startsAt).getTime()) ||
+      !rawText?.id ||
+      !rawText.title ||
+      !rawText.content ||
+      !rawText.difficulty
+    ) {
+      return false;
+    }
+
+    const text = {
+      id: String(rawText.id),
+      title: String(rawText.title),
+      content: String(rawText.content),
+      difficulty: String(rawText.difficulty),
+    };
+    startSyncRef.current = false;
+    dispatch({ type: "RESET", content: text.content });
+    setCountdown(
+      Math.max(0, Math.ceil((new Date(startsAt).getTime() - Date.now()) / 1000)),
+    );
+    setRoom((current) => ({
+      ...current,
+      status: "countdown",
+      startsAt,
+      text,
+    }));
+    setParticipants((items) =>
+      items.map((item) => ({
+        ...item,
+        raceStatus: "racing",
+        progress: 0,
+        currentCharacter: 0,
+        incorrectKeystrokes: 0,
+        totalKeystrokes: 0,
+        lastSequence: 0,
+        wpm: 0,
+        placement: null,
+      })),
+    );
+    return true;
+  }, []);
+
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase.channel(`race:${room.id}`, {
@@ -245,6 +292,9 @@ export function RaceRoomClient({
       .on("presence", { event: "sync" }, () => {
         setOnlineIds(new Set(Object.keys(channel.presenceState())));
         refreshVerifiedState();
+      })
+      .on("broadcast", { event: "race_countdown" }, ({ payload }) => {
+        if (!applyRaceCountdown(payload)) refreshVerifiedState();
       })
       .on("broadcast", { event: "state_changed" }, refreshVerifiedState)
       .on("broadcast", { event: "player_progress" }, ({ payload }) => {
@@ -311,7 +361,7 @@ export function RaceRoomClient({
       channelRef.current = null;
       void supabase.removeChannel(channel);
     };
-  }, [refreshVerifiedState, room.id, viewerId]);
+  }, [applyRaceCountdown, refreshVerifiedState, room.id, viewerId]);
 
   const syncRaceState = useCallback(async () => {
     const response = await fetch(`/api/races/${room.id}/sync`, {
@@ -533,6 +583,11 @@ export function RaceRoomClient({
     });
     const result = await response.json();
     if (!result.success) return setMessage(result.message);
+    if (result.data?.started) {
+      applyRaceCountdown(result.data);
+      await broadcast("race_countdown", result.data);
+      return;
+    }
     await broadcast("state_changed", { reason: "ready_changed" });
     refreshVerifiedState();
   }
@@ -543,8 +598,11 @@ export function RaceRoomClient({
     });
     const result = await response.json();
     if (!result.success) return setMessage(result.message);
-    await broadcast("state_changed", { reason: "race_countdown" });
-    refreshVerifiedState();
+    if (!applyRaceCountdown(result.data)) {
+      refreshVerifiedState();
+      return;
+    }
+    await broadcast("race_countdown", result.data);
   }
 
   async function leaveRoom() {
