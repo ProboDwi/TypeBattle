@@ -22,6 +22,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { TypingCapture } from "@/components/game/typing-capture";
 import { createClient } from "@/lib/supabase/client";
 import {
   createTypingState,
@@ -112,6 +113,7 @@ export function RaceRoomClient({
   const [kickError, setKickError] = useState("");
   const [countdown, setCountdown] = useState(3);
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [finishPending, setFinishPending] = useState(false);
   const [ownResult, setOwnResult] = useState<{
     placement: number;
     wpm: number;
@@ -136,7 +138,6 @@ export function RaceRoomClient({
   const startSyncRef = useRef(false);
   const focusLossesRef = useRef(0);
   const integrityEventsRef = useRef<string[]>([]);
-  const composingRef = useRef(false);
 
   useEffect(() => {
     typingRef.current = typing;
@@ -184,6 +185,31 @@ export function RaceRoomClient({
     [typing, elapsedMs],
   );
   const activeRace = room.status === "countdown" || room.status === "racing";
+  const displayedParticipants = useMemo(
+    () =>
+      participants.map((participant) =>
+        participant.userId === viewerId && typing.started
+          ? {
+              ...participant,
+              progress: metrics.progress,
+              currentCharacter: typing.currentCharacter,
+              incorrectKeystrokes: typing.incorrectKeystrokes,
+              totalKeystrokes: typing.totalKeystrokes,
+              wpm: metrics.wpm,
+            }
+          : participant,
+      ),
+    [
+      metrics.progress,
+      metrics.wpm,
+      participants,
+      typing.currentCharacter,
+      typing.incorrectKeystrokes,
+      typing.started,
+      typing.totalKeystrokes,
+      viewerId,
+    ],
+  );
 
   const broadcast = useCallback(
     async (event: string, payload: BroadcastPayload = {}) => {
@@ -307,9 +333,15 @@ export function RaceRoomClient({
         startPerformanceRef.current =
           performance.now() + Math.min(0, difference);
         dispatch({ type: "START" });
-        setRoom((current) => ({ ...current, status: "racing" }));
         requestAnimationFrame(() =>
           inputRef.current?.focus({ preventScroll: true }),
+        );
+      }
+      if (difference <= 0) {
+        setRoom((current) =>
+          current.status === "countdown"
+            ? { ...current, status: "racing" }
+            : current,
         );
       }
       if (difference <= 0 && !startSyncRef.current) {
@@ -325,7 +357,7 @@ export function RaceRoomClient({
   }, [activeRace, broadcast, room.startsAt, room.text, syncRaceState]);
 
   useEffect(() => {
-    if (room.status !== "racing" || !room.startsAt) return;
+    if (!activeRace || !typing.started || !room.startsAt) return;
     const officialStart = new Date(room.startsAt).getTime();
     startPerformanceRef.current =
       performance.now() - Math.max(0, Date.now() - officialStart);
@@ -337,21 +369,21 @@ export function RaceRoomClient({
       100,
     );
     return () => window.clearInterval(interval);
-  }, [room.startsAt, room.status]);
+  }, [activeRace, room.startsAt, typing.started]);
 
   useEffect(() => {
     const recordVisibility = () => {
-      if (document.hidden && room.status === "racing") {
+      if (document.hidden && activeRace && typingRef.current.started) {
         focusLossesRef.current += 1;
       }
     };
     document.addEventListener("visibilitychange", recordVisibility);
     return () =>
       document.removeEventListener("visibilitychange", recordVisibility);
-  }, [room.status]);
+  }, [activeRace]);
 
   useEffect(() => {
-    if (room.status !== "racing" || !typing.started || typing.finished) return;
+    if (!activeRace || !typing.started || typing.finished) return;
     const now = Date.now();
     if (now - lastBroadcastRef.current >= 180) {
       lastBroadcastRef.current = now;
@@ -384,50 +416,70 @@ export function RaceRoomClient({
         }
       });
     }
-  }, [broadcast, metrics, room.id, room.status, typing, viewerId]);
+  }, [activeRace, broadcast, metrics, room.id, typing, viewerId]);
 
   const finishRace = useCallback(async () => {
     const participant = participantsRef.current.find(
       (item) => item.userId === viewerId,
     );
-    if (finishingRef.current || !participant?.finishNonce) return;
-    finishingRef.current = true;
-    const finalState = typingRef.current;
-    const response = await fetch(`/api/races/${room.id}/finish`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        nonce: participant.finishNonce,
-        currentCharacter: finalState.currentCharacter,
-        incorrectKeystrokes: finalState.incorrectKeystrokes,
-        totalKeystrokes: finalState.totalKeystrokes,
-        clientDurationMs: Math.max(
-          1,
-          Math.round(performance.now() - startPerformanceRef.current),
-        ),
-        focusLosses: focusLossesRef.current,
-        integrityEvents: integrityEventsRef.current,
-      }),
-    });
-    const result = await response.json();
-    if (!result.success) {
-      setMessage(result.message);
-      finishingRef.current = false;
+    if (finishingRef.current) return;
+    if (!participant?.finishNonce) {
+      setMessage(
+        "Token penyimpanan hasil belum tersedia. Muat ulang halaman lalu coba simpan lagi.",
+      );
       return;
     }
-    setOwnResult({
-      placement: Number(result.data.placement),
-      wpm: Number(result.data.wpm),
-      accuracy: Number(result.data.accuracy),
-      ratingChange: Number(result.data.ratingChange),
-    });
-    if (result.data.suspicious) {
+    finishingRef.current = true;
+    setFinishPending(true);
+    try {
+      const finalState = typingRef.current;
+      const response = await fetch(`/api/races/${room.id}/finish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nonce: participant.finishNonce,
+          currentCharacter: finalState.currentCharacter,
+          incorrectKeystrokes: finalState.incorrectKeystrokes,
+          totalKeystrokes: finalState.totalKeystrokes,
+          clientDurationMs: Math.max(
+            1,
+            Math.round(performance.now() - startPerformanceRef.current),
+          ),
+          focusLosses: focusLossesRef.current,
+          integrityEvents: integrityEventsRef.current,
+        }),
+      });
+      const result = await response.json().catch(() => null);
+      if (!response.ok || !result?.success) {
+        setMessage(
+          result?.message ??
+            "Hasil belum tersimpan karena koneksi terputus. Coba simpan lagi.",
+        );
+        return;
+      }
+      setOwnResult({
+        placement: Number(result.data.placement),
+        wpm: Number(result.data.wpm),
+        accuracy: Number(result.data.accuracy),
+        ratingChange: Number(result.data.ratingChange),
+      });
+      if (result.data.suspicious) {
+        setMessage(
+          "Hasil ditahan untuk pemeriksaan dan tidak mengubah rating resmi.",
+        );
+      } else {
+        setMessage("");
+      }
+      await broadcast("state_changed", { reason: "player_finished" });
+      refreshVerifiedState();
+    } catch {
       setMessage(
-        "Hasil ditahan untuk pemeriksaan dan tidak mengubah rating resmi.",
+        "Hasil belum tersimpan karena koneksi terputus. Coba simpan lagi.",
       );
+    } finally {
+      finishingRef.current = false;
+      setFinishPending(false);
     }
-    await broadcast("state_changed", { reason: "player_finished" });
-    refreshVerifiedState();
   }, [broadcast, refreshVerifiedState, room.id, viewerId]);
 
   useEffect(() => {
@@ -752,7 +804,7 @@ export function RaceRoomClient({
       </div>
       <div className="border-b border-white/10 p-4 sm:p-7">
         <div className="space-y-3">
-          {[...participants]
+          {[...displayedParticipants]
             .sort((a, b) => b.progress - a.progress)
             .map((participant, index) => (
               <div
@@ -795,7 +847,7 @@ export function RaceRoomClient({
         </div>
       </div>
       <div className="relative p-5 sm:p-8">
-        {room.status === "countdown" && (
+        {room.status === "countdown" && !typing.started && (
           <div className="absolute inset-0 z-10 grid place-items-center bg-ink/95">
             <div className="text-center">
               <p className="font-mono text-7xl text-flare" aria-hidden="true">
@@ -839,7 +891,7 @@ export function RaceRoomClient({
           </div>
         </div>
         <div
-          className="min-h-48 rounded-[7px] border border-white/10 bg-black/15 p-5 font-mono text-[clamp(1rem,2vw,1.3rem)] leading-[1.9]"
+          className="relative min-h-48 rounded-[7px] border border-white/10 bg-black/15 p-5 font-mono text-[clamp(1rem,2vw,1.3rem)] leading-[1.9]"
           role="application"
           aria-label="Area balapan"
           data-target-text={typing.content}
@@ -861,74 +913,42 @@ export function RaceRoomClient({
               {character}
             </span>
           ))}
-          <textarea
-            ref={inputRef}
-            value=""
-            onChange={() => undefined}
-            className="fixed left-[-9999px] h-px w-px opacity-0"
-            aria-label="Input balapan"
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck={false}
-            onKeyDown={(event) => {
-              if (event.key === "Backspace") {
-                event.preventDefault();
-                dispatch({ type: "BACKSPACE" });
-                return;
-              }
-              if (
-                room.status === "racing" &&
-                !composingRef.current &&
-                event.key.length === 1 &&
-                !event.ctrlKey &&
-                !event.metaKey &&
-                !event.altKey
-              ) {
-                event.preventDefault();
-                dispatch({ type: "TYPE", character: event.key });
-              }
-            }}
-            onBeforeInput={(event) => {
-              const native = event.nativeEvent as InputEvent;
-              event.preventDefault();
-              if (room.status !== "racing" || composingRef.current) return;
-              if (native.inputType !== "insertText" || !native.data) {
-                appendIntegrityEvent(
-                  integrityEventsRef,
-                  `input:${native.inputType}`,
-                );
-                return;
-              }
-              for (const character of native.data) {
+          <TypingCapture
+            inputRef={inputRef}
+            active={activeRace && typing.started && !typing.finished}
+            label="Input balapan"
+            onType={(value) => {
+              for (const character of value) {
                 dispatch({ type: "TYPE", character });
               }
             }}
-            onCompositionStart={() => {
-              composingRef.current = true;
-            }}
-            onCompositionEnd={(event) => {
-              composingRef.current = false;
-              if (room.status === "racing") {
-                for (const character of event.data) {
-                  dispatch({ type: "TYPE", character });
-                }
+            onBackspace={() => dispatch({ type: "BACKSPACE" })}
+            onBlockedInput={(kind) => {
+              appendIntegrityEvent(integrityEventsRef, kind);
+              if (kind === "paste" || kind === "insertFromPaste") {
+                setMessage(
+                  "Paste diblokir dan dicatat pada pemeriksaan hasil.",
+                );
               }
-            }}
-            onPaste={(event) => {
-              event.preventDefault();
-              appendIntegrityEvent(integrityEventsRef, "paste");
-              setMessage("Paste diblokir dan dicatat pada pemeriksaan hasil.");
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              appendIntegrityEvent(integrityEventsRef, "drop");
             }}
           />
         </div>
+        <p className="mt-3 text-xs text-white/45">
+          Di HP, ketuk area teks untuk membuka keyboard.
+        </p>
         {message && (
           <p role="status" className="mt-4 text-sm text-flare">
             {message}
           </p>
+        )}
+        {typing.finished && !ownResult && (
+          <Button
+            onClick={() => void finishRace()}
+            disabled={finishPending}
+            className="mt-4"
+          >
+            {finishPending ? "Menyimpan hasil..." : "Coba simpan hasil lagi"}
+          </Button>
         )}
         <Button
           onClick={() => {

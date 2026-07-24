@@ -10,6 +10,7 @@ import {
 } from "react";
 import { ArrowLeft, Clipboard, Focus, RotateCcw, Share2 } from "lucide-react";
 import { DailyResetCountdown } from "@/components/game/daily-reset-countdown";
+import { TypingCapture } from "@/components/game/typing-capture";
 import { Button, ButtonLink } from "@/components/ui/button";
 import {
   createTypingState,
@@ -86,7 +87,6 @@ export function PracticeGame({
   const focusLossesRef = useRef(0);
   const integrityEventsRef = useRef<string[]>([]);
   const finishingRef = useRef(false);
-  const composingRef = useRef(false);
 
   useEffect(() => {
     typingRef.current = typing;
@@ -586,69 +586,24 @@ export function PracticeGame({
               </span>
             );
           })}
-          <textarea
-            ref={inputRef}
-            value=""
-            onChange={() => undefined}
-            className="fixed left-[-9999px] top-auto h-px w-px opacity-0"
-            aria-label="Input teks permainan"
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck={false}
-            inputMode="text"
-            onKeyDown={(event) => {
-              if (event.key === "Backspace") {
-                event.preventDefault();
-                dispatch({ type: "BACKSPACE" });
-                return;
+          <TypingCapture
+            inputRef={inputRef}
+            active={phase === "typing"}
+            label="Input teks permainan"
+            onType={typeCharacters}
+            onBackspace={() => dispatch({ type: "BACKSPACE" })}
+            onBlockedInput={(kind) => {
+              integrityEventsRef.current.push(kind);
+              if (kind === "paste" || kind === "insertFromPaste") {
+                setNotice("Paste diblokir untuk menjaga hasil tetap adil.");
               }
-              if (
-                phase === "typing" &&
-                !composingRef.current &&
-                event.key.length === 1 &&
-                !event.ctrlKey &&
-                !event.metaKey &&
-                !event.altKey
-              ) {
-                event.preventDefault();
-                typeCharacters(event.key);
-              }
-            }}
-            onBeforeInput={(event) => {
-              if (phase !== "typing" || composingRef.current)
-                return event.preventDefault();
-              const inputEvent = event.nativeEvent as InputEvent;
-              if (inputEvent.inputType !== "insertText" || !inputEvent.data) {
-                integrityEventsRef.current.push(
-                  `input:${inputEvent.inputType}`,
-                );
-                return event.preventDefault();
-              }
-              event.preventDefault();
-              typeCharacters(inputEvent.data);
-            }}
-            onCompositionStart={() => {
-              composingRef.current = true;
-            }}
-            onCompositionEnd={(event) => {
-              composingRef.current = false;
-              if (phase === "typing") typeCharacters(event.data);
-            }}
-            onPaste={(event) => {
-              event.preventDefault();
-              integrityEventsRef.current.push("paste");
-              setNotice("Paste diblokir untuk menjaga hasil tetap adil.");
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-              integrityEventsRef.current.push("drop");
             }}
           />
         </div>
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-white/45">
           <p>
-            Klik area teks atau tekan tombol fokus. Kesalahan harus dihapus
-            dengan Backspace.
+            Di HP, ketuk area teks untuk membuka keyboard. Kesalahan harus
+            dihapus dengan Backspace.
           </p>
           <button
             type="button"
