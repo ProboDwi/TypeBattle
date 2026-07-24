@@ -5,18 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { signUpSchema } from "@/lib/validation/auth";
 
 export async function POST(request: Request) {
-  const identifier =
+  const ipAddress =
     request.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown";
-  if (
-    !(await consumeRateLimit({
-      identifier,
-      action: "sign-up",
-      limit: 5,
-      windowSeconds: 3600,
-    }))
-  ) {
-    return apiError("Batas pendaftaran tercapai. Coba lagi nanti.", 429);
-  }
   const parsed = signUpSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success)
     return apiError(
@@ -24,6 +14,28 @@ export async function POST(request: Request) {
       422,
       parsed.error.flatten().fieldErrors,
     );
+
+  const [ipAllowed, emailAllowed] = await Promise.all([
+    consumeRateLimit({
+      identifier: ipAddress,
+      action: "sign-up-ip",
+      limit: 20,
+      windowSeconds: 3600,
+    }),
+    consumeRateLimit({
+      identifier: parsed.data.email.trim().toLowerCase(),
+      action: "sign-up-email",
+      limit: 5,
+      windowSeconds: 3600,
+    }),
+  ]);
+  if (!ipAllowed || !emailAllowed) {
+    return apiError(
+      "Terlalu banyak percobaan pendaftaran. Tunggu beberapa saat lalu coba lagi.",
+      429,
+    );
+  }
+
   try {
     const supabase = await createClient();
     const { data: existing } = await supabase
