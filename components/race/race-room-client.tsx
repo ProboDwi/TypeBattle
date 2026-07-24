@@ -240,6 +240,7 @@ export function RaceRoomClient({
     channel
       .on("presence", { event: "sync" }, () => {
         setOnlineIds(new Set(Object.keys(channel.presenceState())));
+        refreshVerifiedState();
       })
       .on("broadcast", { event: "state_changed" }, refreshVerifiedState)
       .on("broadcast", { event: "player_progress" }, ({ payload }) => {
