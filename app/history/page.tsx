@@ -103,6 +103,7 @@ export default async function HistoryPage({
           <Link
             key={item.value}
             href={`/history?filter=${item.value}`}
+            aria-current={filter === item.value ? "page" : undefined}
             className={`button-base whitespace-nowrap ${filter === item.value ? "border-ink bg-ink text-paper" : "border-line bg-card text-muted"}`}
           >
             {item.label}

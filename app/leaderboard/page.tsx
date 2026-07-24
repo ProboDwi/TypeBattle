@@ -136,6 +136,7 @@ export default async function LeaderboardPage({
             <Link
               key={item.value}
               href={`/leaderboard?tab=${item.value}&period=${period}`}
+              aria-current={tab === item.value ? "page" : undefined}
               className={`button-base whitespace-nowrap ${tab === item.value ? "border-ink bg-ink text-paper" : "border-line bg-card text-muted"}`}
             >
               {item.label}
@@ -150,6 +151,7 @@ export default async function LeaderboardPage({
             <Link
               key={item.value}
               href={`/leaderboard?tab=${tab}&period=${item.value}`}
+              aria-current={period === item.value ? "page" : undefined}
               className={`border-b-2 px-1 py-3 text-sm font-bold ${period === item.value ? "border-accent text-ink" : "border-transparent text-muted"}`}
             >
               {item.label}

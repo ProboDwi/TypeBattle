@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,20 +50,43 @@ function Field({
   registration: React.InputHTMLAttributes<HTMLInputElement>;
 }) {
   const errorId = `${id}-error`;
+  const isPassword = type === "password";
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const resolvedType = isPassword && passwordVisible ? "text" : type;
+
   return (
     <div>
       <label className="label" htmlFor={id}>
         {label}
       </label>
-      <input
-        id={id}
-        type={type}
-        autoComplete={autoComplete}
-        className="field"
-        aria-invalid={Boolean(error)}
-        aria-describedby={error ? errorId : undefined}
-        {...registration}
-      />
+      <div className="relative">
+        <input
+          id={id}
+          type={resolvedType}
+          autoComplete={autoComplete}
+          className={isPassword ? "field pr-12" : "field"}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : undefined}
+          {...registration}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setPasswordVisible((visible) => !visible)}
+            className="absolute inset-y-0 right-0 grid w-12 place-items-center text-muted transition-colors hover:text-ink"
+            aria-label={
+              passwordVisible ? "Sembunyikan password" : "Tampilkan password"
+            }
+            aria-pressed={passwordVisible}
+          >
+            {passwordVisible ? (
+              <EyeOff size={19} aria-hidden="true" />
+            ) : (
+              <Eye size={19} aria-hidden="true" />
+            )}
+          </button>
+        )}
+      </div>
       {error && (
         <p id={errorId} className="mt-1.5 text-sm text-danger">
           {error}

@@ -31,6 +31,11 @@ export function AccountNav({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const profileHref = `/profile/${profile.username}`;
+  const profileActive =
+    pathname === profileHref || pathname.startsWith(`${profileHref}/`);
+  const adminActive =
+    pathname === "/admin" || pathname.startsWith("/admin/");
   async function signOut() {
     await fetch("/api/auth/sign-out", { method: "POST" });
     router.push("/");
@@ -48,22 +53,32 @@ export function AccountNav({
         </div>
       </div>
       <nav className="grid p-2" aria-label="Navigasi akun">
-        {items.map(({ href, label, icon: Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "flex items-center gap-3 rounded-[6px] px-3 py-2.5 text-sm font-semibold text-muted hover:bg-sand hover:text-ink",
-              pathname === href && "bg-sand text-ink",
-            )}
-          >
-            <Icon size={17} />
-            {label}
-          </Link>
-        ))}
+        {items.map(({ href, label, icon: Icon }) => {
+          const active =
+            pathname === href ||
+            (href !== "/dashboard" && pathname.startsWith(`${href}/`));
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex items-center gap-3 rounded-[6px] px-3 py-2.5 text-sm font-semibold text-muted hover:bg-sand hover:text-ink",
+                active && "bg-sand text-ink",
+              )}
+            >
+              <Icon size={17} />
+              {label}
+            </Link>
+          );
+        })}
         <Link
-          href={`/profile/${profile.username}`}
-          className="flex items-center gap-3 rounded-[6px] px-3 py-2.5 text-sm font-semibold text-muted hover:bg-sand hover:text-ink"
+          href={profileHref}
+          aria-current={profileActive ? "page" : undefined}
+          className={cn(
+            "flex items-center gap-3 rounded-[6px] px-3 py-2.5 text-sm font-semibold text-muted hover:bg-sand hover:text-ink",
+            profileActive && "bg-sand text-ink",
+          )}
         >
           <UserRound size={17} />
           Profil publik
@@ -71,7 +86,11 @@ export function AccountNav({
         {profile.role === "admin" && (
           <Link
             href="/admin"
-            className="flex items-center gap-3 rounded-[6px] px-3 py-2.5 text-sm font-semibold text-accent hover:bg-sand"
+            aria-current={adminActive ? "page" : undefined}
+            className={cn(
+              "flex items-center gap-3 rounded-[6px] px-3 py-2.5 text-sm font-semibold text-accent hover:bg-sand",
+              adminActive && "bg-sand",
+            )}
           >
             <ShieldCheck size={17} />
             Panel admin
