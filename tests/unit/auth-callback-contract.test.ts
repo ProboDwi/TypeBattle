@@ -22,6 +22,9 @@ describe("email authentication callback", () => {
 
   it("keeps the PKCE code exchange fallback", () => {
     expect(callbackRoute).toContain("supabase.auth.exchangeCodeForSession");
+    expect(callbackRoute).toContain(
+      "Email%20berhasil%20dikonfirmasi.%20Silakan%20masuk.",
+    );
   });
 
   it("waits for an explicit POST before consuming scanner-sensitive tokens", () => {

@@ -22,6 +22,15 @@ function invalidLinkRedirect(origin: string, status: 303 | 307 = 307) {
   );
 }
 
+function confirmedLoginRedirect(origin: string) {
+  return NextResponse.redirect(
+    new URL(
+      "/auth/sign-in?message=Email%20berhasil%20dikonfirmasi.%20Silakan%20masuk.",
+      origin,
+    ),
+  );
+}
+
 async function verifyTokenHash(tokenHash: string, typeParam: string) {
   if (!emailOtpTypes.has(typeParam as EmailOtpType)) return false;
 
@@ -51,6 +60,12 @@ export async function GET(request: Request) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (!error)
           return NextResponse.redirect(new URL(safeNext, url.origin));
+
+        // Supabase has already consumed the one-time confirmation link before
+        // redirecting here. On another device the PKCE verifier cookie is not
+        // available, so automatic sign-in can fail although email confirmation
+        // itself succeeded.
+        return confirmedLoginRedirect(url.origin);
       }
     } catch {
       // Redirect below keeps configuration errors out of the response body.
