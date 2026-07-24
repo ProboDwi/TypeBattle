@@ -50,6 +50,10 @@ const hostControlledStart = readFileSync(
   resolve("supabase/migrations/202607240017_host_controlled_race_start.sql"),
   "utf8",
 );
+const fiveSecondRaceCountdown = readFileSync(
+  resolve("supabase/migrations/202607240018_five_second_race_countdown.sql"),
+  "utf8",
+);
 
 describe("Supabase integration contract", () => {
   it("creates profiles automatically after registration", () => {
@@ -150,5 +154,13 @@ describe("Supabase integration contract", () => {
       "jsonb_build_object('ready', p_ready, 'started', false)",
     );
     expect(hostControlledStart).not.toContain("status = 'countdown'");
+  });
+
+  it("uses a five-second countdown for new and waiting race rooms", () => {
+    expect(fiveSecondRaceCountdown).toContain(
+      "alter column countdown_seconds set default 5",
+    );
+    expect(fiveSecondRaceCountdown).toContain("set countdown_seconds = 5");
+    expect(fiveSecondRaceCountdown).toContain("where status = 'waiting'");
   });
 });

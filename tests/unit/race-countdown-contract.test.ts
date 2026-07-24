@@ -31,4 +31,12 @@ describe("race countdown", () => {
       'await broadcast("race_countdown", result.data)',
     );
   });
+
+  it("uses a five-second monotonic countdown independent of device clock skew", () => {
+    expect(raceClient).toContain("useState(5)");
+    expect(raceClient).toContain("countdownDeadlineRef");
+    expect(raceClient).toContain(
+      "performance.now() + countdownSeconds * 1000",
+    );
+  });
 });

@@ -112,7 +112,7 @@ export function RaceRoomClient({
   } | null>(null);
   const [kickPending, setKickPending] = useState(false);
   const [kickError, setKickError] = useState("");
-  const [countdown, setCountdown] = useState(3);
+  const [countdown, setCountdown] = useState(5);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [finishPending, setFinishPending] = useState(false);
   const [ownResult, setOwnResult] = useState<{
@@ -137,6 +137,7 @@ export function RaceRoomClient({
   const remoteSequencesRef = useRef<Record<string, number>>({});
   const finishingRef = useRef(false);
   const startSyncRef = useRef(false);
+  const countdownDeadlineRef = useRef<number | null>(null);
   const focusLossesRef = useRef(0);
   const integrityEventsRef = useRef<string[]>([]);
 
@@ -152,7 +153,14 @@ export function RaceRoomClient({
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
-      setRoom(initialRoom);
+      const localCountdownActive =
+        countdownDeadlineRef.current !== null &&
+        countdownDeadlineRef.current > performance.now();
+      setRoom(
+        localCountdownActive && initialRoom.status === "racing"
+          ? { ...initialRoom, status: "countdown" }
+          : initialRoom,
+      );
       setParticipants(initialParticipants);
       const own = initialParticipants.find((item) => item.userId === viewerId);
       if (!initialRoom.text || !own) return;
@@ -170,9 +178,10 @@ export function RaceRoomClient({
           incorrectKeystrokes: own.incorrectKeystrokes,
           totalKeystrokes: own.totalKeystrokes,
           started:
-            initialRoom.status === "racing" ||
-            (Boolean(initialRoom.startsAt) &&
-              new Date(String(initialRoom.startsAt)).getTime() <= Date.now()),
+            !localCountdownActive &&
+            (initialRoom.status === "racing" ||
+              (Boolean(initialRoom.startsAt) &&
+                new Date(String(initialRoom.startsAt)).getTime() <= Date.now())),
         });
       }
     });
@@ -251,11 +260,15 @@ export function RaceRoomClient({
       content: String(rawText.content),
       difficulty: String(rawText.difficulty),
     };
-    startSyncRef.current = false;
-    dispatch({ type: "RESET", content: text.content });
-    setCountdown(
-      Math.max(0, Math.ceil((new Date(startsAt).getTime() - Date.now()) / 1000)),
+    const countdownSeconds = Math.max(
+      1,
+      Number(payload.countdownSeconds) || 5,
     );
+    startSyncRef.current = false;
+    countdownDeadlineRef.current =
+      performance.now() + countdownSeconds * 1000;
+    dispatch({ type: "RESET", content: text.content });
+    setCountdown(Math.ceil(countdownSeconds));
     setRoom((current) => ({
       ...current,
       status: "countdown",
@@ -387,9 +400,13 @@ export function RaceRoomClient({
     if (!activeRace || !room.startsAt || !room.text) return;
     const startAt = new Date(room.startsAt).getTime();
     const tick = () => {
-      const difference = startAt - Date.now();
+      const difference =
+        countdownDeadlineRef.current === null
+          ? startAt - Date.now()
+          : countdownDeadlineRef.current - performance.now();
       setCountdown(Math.max(0, Math.ceil(difference / 1000)));
       if (difference <= 0 && !typingRef.current.started) {
+        countdownDeadlineRef.current = null;
         startPerformanceRef.current =
           performance.now() + Math.min(0, difference);
         dispatch({ type: "START" });
