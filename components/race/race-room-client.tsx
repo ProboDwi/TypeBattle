@@ -169,6 +169,10 @@ export function RaceRoomClient({
           currentCharacter: own.currentCharacter,
           incorrectKeystrokes: own.incorrectKeystrokes,
           totalKeystrokes: own.totalKeystrokes,
+          started:
+            initialRoom.status === "racing" ||
+            (Boolean(initialRoom.startsAt) &&
+              new Date(String(initialRoom.startsAt)).getTime() <= Date.now()),
         });
       }
     });
@@ -828,7 +832,11 @@ export function RaceRoomClient({
           <p className="font-mono text-xs text-white/40">
             {room.name} / {room.code}
           </p>
-          <h1 className="mt-1 text-xl font-bold">Race in progress</h1>
+          <h1 className="mt-1 text-xl font-bold">
+            {room.status === "countdown"
+              ? "Bersiap untuk balapan"
+              : "Race in progress"}
+          </h1>
         </div>
         <div className="flex items-center gap-5 font-mono text-sm">
           <span>{participants.length} pemain</span>
@@ -881,13 +889,19 @@ export function RaceRoomClient({
         </div>
       </div>
       <div className="relative p-5 sm:p-8">
-        {room.status === "countdown" && !typing.started && (
+        {room.status === "countdown" && (
           <div
             className="absolute inset-0 z-10 grid place-items-center bg-ink/95"
             onPointerDown={focusRaceInput}
           >
             <div className="text-center">
-              <p className="font-mono text-7xl text-flare" aria-hidden="true">
+              <p className="eyebrow justify-center text-white/45">
+                Balapan segera dimulai
+              </p>
+              <p
+                className="mt-4 font-mono text-7xl font-bold text-flare"
+                aria-hidden="true"
+              >
                 {countdown || "GO"}
               </p>
               <p className="sr-only" aria-live="polite">

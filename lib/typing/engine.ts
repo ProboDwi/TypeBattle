@@ -26,6 +26,7 @@ export type TypingAction =
       currentCharacter: number;
       incorrectKeystrokes: number;
       totalKeystrokes: number;
+      started?: boolean;
     };
 
 export function createTypingState(content: string): TypingState {
@@ -97,7 +98,7 @@ export function typingReducer(
           action.incorrectKeystrokes,
         ),
         errorCharacter: null,
-        started: true,
+        started: action.started ?? true,
         finished: currentCharacter >= action.content.length,
       };
     }

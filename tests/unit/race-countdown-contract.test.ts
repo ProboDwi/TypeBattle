@@ -1,0 +1,24 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const raceClient = readFileSync(
+  resolve("components/race/race-room-client.tsx"),
+  "utf8",
+);
+
+describe("race countdown", () => {
+  it("shows the server-timed countdown before typing starts", () => {
+    expect(raceClient).toContain('{room.status === "countdown" && (');
+    expect(raceClient).not.toContain(
+      'room.status === "countdown" && !typing.started',
+    );
+    expect(raceClient).toContain("Balapan segera dimulai");
+    expect(raceClient).toContain('{countdown || "GO"}');
+  });
+
+  it("restores countdown text without starting the typing engine early", () => {
+    expect(raceClient).toContain("started:");
+    expect(raceClient).toContain('initialRoom.status === "racing"');
+  });
+});

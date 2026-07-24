@@ -47,4 +47,15 @@ describe("strict typing reducer", () => {
       finished: false,
     });
   });
+  it("can restore countdown text without starting input", () => {
+    const restored = typingReducer(createTypingState("abc"), {
+      type: "RESTORE",
+      content: "abc",
+      currentCharacter: 0,
+      incorrectKeystrokes: 0,
+      totalKeystrokes: 0,
+      started: false,
+    });
+    expect(restored.started).toBe(false);
+  });
 });
