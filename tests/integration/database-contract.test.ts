@@ -38,6 +38,10 @@ const raceFinishReliability = readFileSync(
   resolve("supabase/migrations/202607240014_race_finish_reliability.sql"),
   "utf8",
 );
+const atomicRaceFinish = readFileSync(
+  resolve("supabase/migrations/202607240015_atomic_race_finish.sql"),
+  "utf8",
+);
 
 describe("Supabase integration contract", () => {
   it("creates profiles automatically after registration", () => {
@@ -107,5 +111,13 @@ describe("Supabase integration contract", () => {
     expect(raceFinishReliability).toContain(
       "where race_room_id = room.id and race_status = 'racing'",
     );
+  });
+  it("persists a complete race atomically and tolerates reordered snapshots", () => {
+    expect(atomicRaceFinish).toContain(
+      "create or replace function public.finish_race",
+    );
+    expect(atomicRaceFinish).toContain("'sequence_regressed'");
+    expect(atomicRaceFinish).toContain("target.character_count");
+    expect(atomicRaceFinish).toContain("'duplicate', true");
   });
 });

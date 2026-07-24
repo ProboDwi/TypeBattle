@@ -100,14 +100,11 @@ export function PracticeGame({
   const timedLimit =
     mode === "timed_30" ? 30_000 : mode === "timed_60" ? 60_000 : null;
 
-  const focusInput = useCallback(
-    () => {
-      const mobile = window.matchMedia("(max-width: 639px)").matches;
-      const target = mobile ? mobileInputRef.current : inputRef.current;
-      target?.focus({ preventScroll: true });
-    },
-    [],
-  );
+  const focusInput = useCallback(() => {
+    const mobile = window.matchMedia("(max-width: 639px)").matches;
+    const target = mobile ? mobileInputRef.current : inputRef.current;
+    target?.focus({ preventScroll: true });
+  }, []);
 
   const startPractice = useCallback(async () => {
     setPhase("loading");
@@ -615,23 +612,23 @@ export function PracticeGame({
               }
             }}
           />
+          <TypingCapture
+            inputRef={mobileInputRef}
+            id="practice-mobile-input"
+            active={phase === "typing"}
+            label="Input latihan di HP"
+            autoFocus
+            className="absolute inset-0 z-[2] h-full w-full resize-none overflow-hidden bg-transparent text-transparent caret-transparent outline-none touch-pan-y sm:hidden"
+            onType={typeCharacters}
+            onBackspace={() => dispatch({ type: "BACKSPACE" })}
+            onBlockedInput={(kind) => {
+              integrityEventsRef.current.push(kind);
+              if (kind === "paste" || kind === "insertFromPaste") {
+                setNotice("Paste diblokir untuk menjaga hasil tetap adil.");
+              }
+            }}
+          />
         </div>
-        <TypingCapture
-          inputRef={mobileInputRef}
-          id="practice-mobile-input"
-          active={phase === "typing"}
-          label="Input latihan di HP"
-          autoFocus
-          className="fixed bottom-0 left-1/2 h-px w-px resize-none overflow-hidden opacity-[0.01] outline-none sm:hidden"
-          onType={typeCharacters}
-          onBackspace={() => dispatch({ type: "BACKSPACE" })}
-          onBlockedInput={(kind) => {
-            integrityEventsRef.current.push(kind);
-            if (kind === "paste" || kind === "insertFromPaste") {
-              setNotice("Paste diblokir untuk menjaga hasil tetap adil.");
-            }
-          }}
-        />
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-white/45">
           <p>
             Fokus keyboard disiapkan otomatis. Kesalahan harus dihapus dengan
