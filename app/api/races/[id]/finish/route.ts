@@ -39,7 +39,38 @@ export async function POST(
       p_focus_losses: parsed.data.focusLosses,
       p_integrity_events: parsed.data.integrityEvents,
     });
-    if (error) return apiError(friendlyRaceError(error.message), 400);
+    if (error) {
+      const { data: existing } = await auth.supabase
+        .from("race_results")
+        .select("placement,wpm,accuracy,duration_ms,rating_change,suspicious")
+        .eq("race_room_id", id)
+        .eq("user_id", auth.user.id)
+        .maybeSingle();
+      if (existing) {
+        return apiSuccess(
+          {
+            placement: Number(existing.placement),
+            wpm: Number(existing.wpm),
+            accuracy: Number(existing.accuracy),
+            durationMs: Number(existing.duration_ms),
+            ratingChange: Number(existing.rating_change),
+            suspicious: Boolean(existing.suspicious),
+            duplicate: true,
+            newAchievements: [],
+          },
+          "Hasil balapan sebelumnya ditemukan dan dipulihkan.",
+        );
+      }
+      console.error("[race/finish] RPC ditolak", {
+        roomId: id,
+        userId: auth.user.id,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return apiError(friendlyRaceError(error.message), 400);
+    }
     return apiSuccess(data, "Hasil balapan tersimpan.");
   } catch {
     return apiError("Hasil balapan belum dapat disimpan.", 503);

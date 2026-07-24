@@ -83,6 +83,7 @@ export function PracticeGame({
   const [result, setResult] = useState<ResultData | null>(null);
   const [notice, setNotice] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const mobileInputRef = useRef<HTMLTextAreaElement>(null);
   const startPerformanceRef = useRef(0);
   const focusLossesRef = useRef(0);
   const integrityEventsRef = useRef<string[]>([]);
@@ -100,7 +101,11 @@ export function PracticeGame({
     mode === "timed_30" ? 30_000 : mode === "timed_60" ? 60_000 : null;
 
   const focusInput = useCallback(
-    () => inputRef.current?.focus({ preventScroll: true }),
+    () => {
+      const mobile = window.matchMedia("(max-width: 639px)").matches;
+      const target = mobile ? mobileInputRef.current : inputRef.current;
+      target?.focus({ preventScroll: true });
+    },
     [],
   );
 
@@ -590,6 +595,36 @@ export function PracticeGame({
             inputRef={inputRef}
             active={phase === "typing"}
             label="Input teks permainan"
+            className="absolute inset-0 z-[1] hidden h-full w-full resize-none overflow-hidden bg-transparent text-transparent caret-transparent outline-none sm:block"
+            onType={typeCharacters}
+            onBackspace={() => dispatch({ type: "BACKSPACE" })}
+            onBlockedInput={(kind) => {
+              integrityEventsRef.current.push(kind);
+              if (kind === "paste" || kind === "insertFromPaste") {
+                setNotice("Paste diblokir untuk menjaga hasil tetap adil.");
+              }
+            }}
+          />
+        </div>
+        <div className="mt-4 sm:hidden">
+          <label
+            htmlFor="practice-mobile-input"
+            className="mb-2 block text-xs font-bold uppercase tracking-[.1em] text-white/55"
+          >
+            Input keyboard HP
+          </label>
+          <TypingCapture
+            inputRef={mobileInputRef}
+            id="practice-mobile-input"
+            active={phase === "typing"}
+            label="Input latihan di HP"
+            autoFocus
+            className="block h-14 w-full resize-none rounded-[7px] border border-flare/70 bg-white/10 px-4 py-3 font-mono text-base text-white caret-flare outline-none focus:border-flare focus:ring-2 focus:ring-flare/25"
+            placeholder={
+              phase === "typing"
+                ? "Ketik di sini..."
+                : "Tunggu hitung mundur..."
+            }
             onType={typeCharacters}
             onBackspace={() => dispatch({ type: "BACKSPACE" })}
             onBlockedInput={(kind) => {
@@ -602,8 +637,8 @@ export function PracticeGame({
         </div>
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-xs text-white/45">
           <p>
-            Di HP, ketuk area teks untuk membuka keyboard. Kesalahan harus
-            dihapus dengan Backspace.
+            Di HP, gunakan kolom input keyboard. Kesalahan harus dihapus dengan
+            Backspace.
           </p>
           <button
             type="button"

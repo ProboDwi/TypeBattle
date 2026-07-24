@@ -23,6 +23,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TypingCapture } from "@/components/game/typing-capture";
+import { getRaceMarkerLeft } from "@/lib/race/progress";
 import { createClient } from "@/lib/supabase/client";
 import {
   createTypingState,
@@ -218,6 +219,10 @@ export function RaceRoomClient({
     [],
   );
 
+  const focusRaceInput = useCallback(() => {
+    inputRef.current?.focus({ preventScroll: true });
+  }, []);
+
   const refreshVerifiedState = useCallback(() => {
     router.refresh();
   }, [router]);
@@ -333,9 +338,7 @@ export function RaceRoomClient({
         startPerformanceRef.current =
           performance.now() + Math.min(0, difference);
         dispatch({ type: "START" });
-        requestAnimationFrame(() =>
-          inputRef.current?.focus({ preventScroll: true }),
-        );
+        requestAnimationFrame(focusRaceInput);
       }
       if (difference <= 0) {
         setRoom((current) =>
@@ -354,7 +357,24 @@ export function RaceRoomClient({
     tick();
     const interval = window.setInterval(tick, 50);
     return () => window.clearInterval(interval);
-  }, [activeRace, broadcast, room.startsAt, room.text, syncRaceState]);
+  }, [
+    activeRace,
+    broadcast,
+    focusRaceInput,
+    room.startsAt,
+    room.text,
+    syncRaceState,
+  ]);
+
+  useEffect(() => {
+    if (!activeRace || !typing.started || typing.finished) return;
+
+    focusRaceInput();
+    const timers = [50, 250, 750, 1500].map((delay) =>
+      window.setTimeout(focusRaceInput, delay),
+    );
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [activeRace, focusRaceInput, typing.finished, typing.started]);
 
   useEffect(() => {
     if (!activeRace || !typing.started || !room.startsAt) return;
@@ -463,6 +483,19 @@ export function RaceRoomClient({
         accuracy: Number(result.data.accuracy),
         ratingChange: Number(result.data.ratingChange),
       });
+      setParticipants((items) =>
+        items.map((item) =>
+          item.userId === viewerId
+            ? {
+                ...item,
+                raceStatus: "finished",
+                progress: 100,
+                placement: Number(result.data.placement),
+                wpm: Number(result.data.wpm),
+              }
+            : item,
+        ),
+      );
       if (result.data.suspicious) {
         setMessage(
           "Hasil ditahan untuk pemeriksaan dan tidak mengubah rating resmi.",
@@ -832,7 +865,7 @@ export function RaceRoomClient({
                   <span
                     className={`race-marker ${participant.raceStatus === "finished" ? "bg-flare" : "bg-moss"}`}
                     style={{
-                      transform: `translateX(calc(${participant.progress}% - 8px))`,
+                      left: getRaceMarkerLeft(participant.progress),
                     }}
                   />
                 </div>
@@ -848,7 +881,10 @@ export function RaceRoomClient({
       </div>
       <div className="relative p-5 sm:p-8">
         {room.status === "countdown" && !typing.started && (
-          <div className="absolute inset-0 z-10 grid place-items-center bg-ink/95">
+          <div
+            className="absolute inset-0 z-10 grid place-items-center bg-ink/95"
+            onPointerDown={focusRaceInput}
+          >
             <div className="text-center">
               <p className="font-mono text-7xl text-flare" aria-hidden="true">
                 {countdown || "GO"}
@@ -915,6 +951,7 @@ export function RaceRoomClient({
           ))}
           <TypingCapture
             inputRef={inputRef}
+            autoFocus
             active={activeRace && typing.started && !typing.finished}
             label="Input balapan"
             onType={(value) => {
@@ -934,7 +971,7 @@ export function RaceRoomClient({
           />
         </div>
         <p className="mt-3 text-xs text-white/45">
-          Di HP, ketuk area teks untuk membuka keyboard.
+          Fokus mengetik disiapkan otomatis setelah hitung mundur.
         </p>
         {message && (
           <p role="status" className="mt-4 text-sm text-flare">

@@ -22,5 +22,13 @@ export function friendlyRaceError(message?: string): string {
   if (message.includes("host"))
     return "Tindakan ini hanya dapat dilakukan host.";
   if (message.includes("expired")) return "Room sudah kedaluwarsa.";
+  if (message.includes("race is not active"))
+    return "Balapan sudah ditutup sebelum hasil diterima.";
+  if (message.includes("participant cannot finish"))
+    return "Status peserta sudah tidak aktif ketika hasil diterima.";
+  if (message.includes("Could not find the function"))
+    return "Fungsi penyimpanan balapan belum terpasang di database.";
+  if (message.includes("protected profile fields"))
+    return "Database belum mengizinkan statistik balapan diperbarui.";
   return "Permintaan balapan ditolak karena status room telah berubah.";
 }

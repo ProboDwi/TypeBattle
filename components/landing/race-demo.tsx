@@ -1,3 +1,5 @@
+import { getRaceMarkerLeft } from "@/lib/race/progress";
+
 const racers = [
   { number: "01", name: "ANDA", progress: 72, accent: true },
   { number: "02", name: "RANI_17", progress: 58, accent: false },
@@ -32,7 +34,7 @@ export function RaceDemo() {
                   racer.accent ? "race-marker bg-flare" : "race-marker bg-moss"
                 }
                 style={{
-                  transform: `translateX(calc(${racer.progress}% - 8px))`,
+                  left: getRaceMarkerLeft(racer.progress),
                 }}
               />
             </div>

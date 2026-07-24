@@ -6,6 +6,10 @@ interface TypingCaptureProps {
   inputRef: RefObject<HTMLTextAreaElement | null>;
   active: boolean;
   label: string;
+  autoFocus?: boolean;
+  className?: string;
+  id?: string;
+  placeholder?: string;
   onType: (value: string) => void;
   onBackspace: () => void;
   onBlockedInput?: (kind: string) => void;
@@ -28,6 +32,10 @@ export function TypingCapture({
   inputRef,
   active,
   label,
+  autoFocus = false,
+  className = "absolute inset-0 z-[1] h-full w-full resize-none overflow-hidden bg-transparent text-transparent caret-transparent outline-none",
+  id,
+  placeholder,
   onType,
   onBackspace,
   onBlockedInput,
@@ -43,10 +51,13 @@ export function TypingCapture({
   return (
     <textarea
       ref={inputRef}
+      id={id}
       defaultValue=""
       data-typing-capture
-      className="absolute inset-0 z-[1] h-full w-full resize-none overflow-hidden bg-transparent text-transparent caret-transparent outline-none"
+      className={className}
       aria-label={label}
+      autoFocus={autoFocus}
+      placeholder={placeholder}
       autoCapitalize="none"
       autoComplete="off"
       autoCorrect="off"

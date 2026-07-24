@@ -180,7 +180,8 @@ button {
   width: 14px;
   height: 12px;
   clip-path: polygon(0 0, 100% 50%, 0 100%);
-  transition: transform 300ms ease-out;
+  transform: translateX(-50%);
+  transition: left 300ms ease-out;
 }
 .section-heading {
   display: grid;

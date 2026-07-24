@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { getRaceMarkerLeft } from "@/lib/race/progress";
 
 export function AuthCard({
   eyebrow,
@@ -41,7 +42,7 @@ export function AuthCard({
               <div className="relative h-5 border-y border-dashed border-white/15">
                 <span
                   className="race-marker bg-flare"
-                  style={{ transform: `translateX(calc(${progress}% - 8px))` }}
+                  style={{ left: getRaceMarkerLeft(progress) }}
                 />
               </div>
               <span>{progress}%</span>

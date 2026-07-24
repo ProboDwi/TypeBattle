@@ -34,6 +34,10 @@ const practiceStatusEnumFix = readFileSync(
   resolve("supabase/migrations/202607230013_fix_practice_status_enum.sql"),
   "utf8",
 );
+const raceFinishReliability = readFileSync(
+  resolve("supabase/migrations/202607240014_race_finish_reliability.sql"),
+  "utf8",
+);
 
 describe("Supabase integration contract", () => {
   it("creates profiles automatically after registration", () => {
@@ -92,6 +96,16 @@ describe("Supabase integration contract", () => {
     expect(practiceStatusEnumFix).toContain("::public.session_status");
     expect(practiceStatusEnumFix).toContain(
       "create or replace function public.finish_practice",
+    );
+  });
+  it("waits for racers and only marks long-idle participants as DNF", () => {
+    expect(raceFinishReliability).toContain(
+      "create or replace function public.protect_profile_fields",
+    );
+    expect(raceFinishReliability).toContain("greatest(600");
+    expect(raceFinishReliability).toContain("interval '2 minutes'");
+    expect(raceFinishReliability).toContain(
+      "where race_room_id = room.id and race_status = 'racing'",
     );
   });
 });
