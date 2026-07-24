@@ -8,8 +8,11 @@ const practiceGame = readFileSync(
 );
 
 describe("practice mobile input layout", () => {
-  it("keeps the mobile capture over the text instead of at the page footer", () => {
-    expect(practiceGame).toContain('className="absolute inset-0 z-[2]');
-    expect(practiceGame).not.toContain('className="fixed bottom-0 left-1/2');
+  it("uses the same single in-place typing capture pattern as race mode", () => {
+    expect(practiceGame.match(/<TypingCapture/g)).toHaveLength(1);
+    expect(practiceGame).toContain("inputRef={inputRef}");
+    expect(practiceGame).toContain("onClick={focusInput}");
+    expect(practiceGame).not.toContain("mobileInputRef");
+    expect(practiceGame).not.toContain("practice-mobile-input");
   });
 });

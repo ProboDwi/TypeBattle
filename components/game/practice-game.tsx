@@ -83,7 +83,6 @@ export function PracticeGame({
   const [result, setResult] = useState<ResultData | null>(null);
   const [notice, setNotice] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const mobileInputRef = useRef<HTMLTextAreaElement>(null);
   const startPerformanceRef = useRef(0);
   const focusLossesRef = useRef(0);
   const integrityEventsRef = useRef<string[]>([]);
@@ -101,9 +100,7 @@ export function PracticeGame({
     mode === "timed_30" ? 30_000 : mode === "timed_60" ? 60_000 : null;
 
   const focusInput = useCallback(() => {
-    const mobile = window.matchMedia("(max-width: 639px)").matches;
-    const target = mobile ? mobileInputRef.current : inputRef.current;
-    target?.focus({ preventScroll: true });
+    inputRef.current?.focus({ preventScroll: true });
   }, []);
 
   const startPractice = useCallback(async () => {
@@ -536,7 +533,7 @@ export function PracticeGame({
           )}
         />
       </div>
-      <div className="p-5 sm:p-8" onClick={focusInput}>
+      <div className="p-5 sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="font-mono text-xs uppercase tracking-[.14em] text-white/40">
@@ -564,6 +561,7 @@ export function PracticeGame({
           aria-label="Area mengetik"
           data-target-text={typing.content}
           tabIndex={-1}
+          onClick={focusInput}
         >
           {phase === "countdown" && (
             <div className="absolute inset-0 z-10 grid place-items-center bg-ink/95">
@@ -600,25 +598,9 @@ export function PracticeGame({
           })}
           <TypingCapture
             inputRef={inputRef}
+            autoFocus
             active={phase === "typing"}
             label="Input teks permainan"
-            className="absolute inset-0 z-[1] hidden h-full w-full resize-none overflow-hidden bg-transparent text-transparent caret-transparent outline-none sm:block"
-            onType={typeCharacters}
-            onBackspace={() => dispatch({ type: "BACKSPACE" })}
-            onBlockedInput={(kind) => {
-              integrityEventsRef.current.push(kind);
-              if (kind === "paste" || kind === "insertFromPaste") {
-                setNotice("Paste diblokir untuk menjaga hasil tetap adil.");
-              }
-            }}
-          />
-          <TypingCapture
-            inputRef={mobileInputRef}
-            id="practice-mobile-input"
-            active={phase === "typing"}
-            label="Input latihan di HP"
-            autoFocus
-            className="absolute inset-0 z-[2] h-full w-full resize-none overflow-hidden bg-transparent text-transparent caret-transparent outline-none touch-pan-y sm:hidden"
             onType={typeCharacters}
             onBackspace={() => dispatch({ type: "BACKSPACE" })}
             onBlockedInput={(kind) => {
