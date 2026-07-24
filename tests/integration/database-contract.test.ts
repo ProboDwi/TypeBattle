@@ -42,6 +42,10 @@ const atomicRaceFinish = readFileSync(
   resolve("supabase/migrations/202607240015_atomic_race_finish.sql"),
   "utf8",
 );
+const levelLeaderboard = readFileSync(
+  resolve("supabase/migrations/202607240016_level_leaderboard.sql"),
+  "utf8",
+);
 
 describe("Supabase integration contract", () => {
   it("creates profiles automatically after registration", () => {
@@ -119,5 +123,16 @@ describe("Supabase integration contract", () => {
     expect(atomicRaceFinish).toContain("'sequence_regressed'");
     expect(atomicRaceFinish).toContain("target.character_count");
     expect(atomicRaceFinish).toContain("'duplicate', true");
+  });
+  it("publishes a level leaderboard ordered by level and experience", () => {
+    expect(levelLeaderboard).toContain(
+      "create or replace view public.leaderboard_level",
+    );
+    expect(levelLeaderboard).toContain(
+      "order by level desc, experience desc",
+    );
+    expect(levelLeaderboard).toContain(
+      "grant select on public.leaderboard_level to anon, authenticated",
+    );
   });
 });

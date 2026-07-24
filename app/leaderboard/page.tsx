@@ -11,6 +11,7 @@ const tabs = [
   { value: "wpm", label: "WPM tertinggi" },
   { value: "rating", label: "Rating" },
   { value: "wins", label: "Total kemenangan" },
+  { value: "level", label: "Level pengguna" },
   { value: "daily", label: "Tantangan harian" },
 ];
 const periods = [
@@ -25,6 +26,7 @@ type BoardRow = {
   value: number;
   accuracy?: number;
   date?: string;
+  experience?: number;
 };
 
 function sinceFor(period: string) {
@@ -98,6 +100,20 @@ export default async function LeaderboardPage({
         accuracy: Number(item.accuracy),
         date: String(item.created_at),
       }));
+    } else if (tab === "level") {
+      const { data } = await supabase
+        .from("leaderboard_level")
+        .select("user_id,username,display_name,level,experience")
+        .order("level", { ascending: false })
+        .order("experience", { ascending: false })
+        .limit(100);
+      rows = (data ?? []).map((item) => ({
+        userId: String(item.user_id),
+        username: String(item.username),
+        displayName: String(item.display_name),
+        value: Number(item.level),
+        experience: Number(item.experience),
+      }));
     } else {
       const orderColumn = tab === "rating" ? "rating" : "total_wins";
       const { data } = await supabase
@@ -126,7 +142,8 @@ export default async function LeaderboardPage({
         </h1>
         <p className="mt-4 max-w-2xl leading-7 text-muted">
           Hasil suspicious, latihan tamu, dan sesi dengan akurasi di bawah 90%
-          tidak dihitung pada papan WPM.
+          tidak dihitung pada papan WPM. Level disusun dari level dan total XP
+          yang diperoleh melalui hasil resmi.
         </p>
         <nav
           className="mt-9 flex gap-2 overflow-x-auto pb-2"
@@ -143,21 +160,23 @@ export default async function LeaderboardPage({
             </Link>
           ))}
         </nav>
-        <nav
-          className="mt-3 flex gap-5 border-b border-line"
-          aria-label="Periode peringkat"
-        >
-          {periods.map((item) => (
-            <Link
-              key={item.value}
-              href={`/leaderboard?tab=${tab}&period=${item.value}`}
-              aria-current={period === item.value ? "page" : undefined}
-              className={`border-b-2 px-1 py-3 text-sm font-bold ${period === item.value ? "border-accent text-ink" : "border-transparent text-muted"}`}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        {(tab === "wpm" || tab === "daily") && (
+          <nav
+            className="mt-3 flex gap-5 border-b border-line"
+            aria-label="Periode peringkat"
+          >
+            {periods.map((item) => (
+              <Link
+                key={item.value}
+                href={`/leaderboard?tab=${tab}&period=${item.value}`}
+                aria-current={period === item.value ? "page" : undefined}
+                className={`border-b-2 px-1 py-3 text-sm font-bold ${period === item.value ? "border-accent text-ink" : "border-transparent text-muted"}`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        )}
         {viewerRank > 10 && (
           <p className="mt-5 rounded-[7px] border border-accent/30 bg-accent/5 p-4 text-sm">
             Posisimu saat ini <strong>#{viewerRank}</strong> dengan nilai{" "}
@@ -187,6 +206,9 @@ export default async function LeaderboardPage({
                       ? ` · ${formatNumber(row.accuracy)}%`
                       : ""}
                     {row.date ? ` · ${formatDate(row.date)}` : ""}
+                    {row.experience !== undefined
+                      ? ` · ${formatNumber(row.experience)} XP`
+                      : ""}
                   </p>
                 </div>
                 <p className="font-mono text-xl text-accent">
@@ -194,7 +216,11 @@ export default async function LeaderboardPage({
                     ? Math.round(row.value)
                     : formatNumber(row.value)}{" "}
                   <span className="text-[10px] uppercase text-muted">
-                    {tab === "wpm" || tab === "daily" ? "WPM" : tab}
+                    {tab === "wpm" || tab === "daily"
+                      ? "WPM"
+                      : tab === "level"
+                        ? "LEVEL"
+                        : tab}
                   </span>
                 </p>
               </div>
