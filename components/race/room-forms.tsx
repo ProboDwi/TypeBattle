@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ActiveRaceRoom } from "@/lib/race/active-room";
+import { QUICK_RACE_BOT_WAIT_MS } from "@/lib/race/bot";
 
 interface CategoryOption {
   id: string;
@@ -194,6 +195,7 @@ export function QuickMatchButton() {
   const router = useRouter();
   const [status, setStatus] = useState<"idle" | "waiting">("idle");
   const [message, setMessage] = useState("");
+  const botRequestedRef = useRef(false);
   useEffect(() => {
     if (status !== "waiting") return;
     const interval = window.setInterval(async () => {
@@ -203,12 +205,35 @@ export function QuickMatchButton() {
         setStatus("idle");
         router.push(`/race/${result.data.code}`);
         router.refresh();
+        return;
+      }
+      const queuedAt = new Date(String(result.data?.queuedAt ?? "")).getTime();
+      if (
+        result.success &&
+        Number.isFinite(queuedAt) &&
+        Date.now() - queuedAt >= QUICK_RACE_BOT_WAIT_MS &&
+        !botRequestedRef.current
+      ) {
+        botRequestedRef.current = true;
+        const botResponse = await fetch("/api/matchmaking/bot", {
+          method: "POST",
+        });
+        const botResult = await botResponse.json();
+        if (botResult.success && botResult.data?.code) {
+          setStatus("idle");
+          router.push(`/race/${botResult.data.code}`);
+          router.refresh();
+          return;
+        }
+        botRequestedRef.current = false;
+        setMessage(botResult.message);
       }
     }, 2000);
     return () => window.clearInterval(interval);
   }, [router, status]);
   async function join() {
     setMessage("");
+    botRequestedRef.current = false;
     const response = await fetch("/api/matchmaking/join", { method: "POST" });
     const result = await response.json();
     if (!result.success) return setMessage(result.message);
@@ -217,11 +242,14 @@ export function QuickMatchButton() {
       router.refresh();
     } else {
       setStatus("waiting");
-      setMessage("Mencari pemain dengan rating berdekatan…");
+      setMessage(
+        "Mencari pemain dengan rating berdekatan. Jika belum ditemukan dalam 10 detik, KeyBot akan masuk.",
+      );
     }
   }
   async function leave() {
     await fetch("/api/matchmaking/leave", { method: "POST" });
+    botRequestedRef.current = false;
     setStatus("idle");
     setMessage("Pencarian dibatalkan.");
   }

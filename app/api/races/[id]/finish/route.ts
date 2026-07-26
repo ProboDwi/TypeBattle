@@ -29,6 +29,9 @@ export async function POST(
       }))
     )
       return apiError("Permintaan finis terlalu sering.", 429);
+    await auth.supabase.rpc("finish_due_race_bot", {
+      p_room_id: id,
+    });
     const { data, error } = await auth.supabase.rpc("finish_race", {
       p_room_id: id,
       p_nonce: parsed.data.nonce,

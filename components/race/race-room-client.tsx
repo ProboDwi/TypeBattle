@@ -23,6 +23,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { TypingCapture } from "@/components/game/typing-capture";
+import { getBotRaceDurationMs, getBotRaceProgress } from "@/lib/race/bot";
 import { getRaceMarkerLeft } from "@/lib/race/progress";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -39,6 +40,8 @@ export interface RaceParticipantView {
   displayName: string;
   avatarSeed: string;
   rating: number;
+  isBot: boolean;
+  botTargetWpm: number | null;
   isReady: boolean;
   connectionStatus: string;
   raceStatus: string;
@@ -181,7 +184,8 @@ export function RaceRoomClient({
             !localCountdownActive &&
             (initialRoom.status === "racing" ||
               (Boolean(initialRoom.startsAt) &&
-                new Date(String(initialRoom.startsAt)).getTime() <= Date.now())),
+                new Date(String(initialRoom.startsAt)).getTime() <=
+                  Date.now())),
         });
       }
     });
@@ -201,8 +205,30 @@ export function RaceRoomClient({
   const activeRace = room.status === "countdown" || room.status === "racing";
   const displayedParticipants = useMemo(
     () =>
-      participants.map((participant) =>
-        participant.userId === viewerId && typing.started
+      participants.map((participant) => {
+        if (
+          participant.isBot &&
+          participant.botTargetWpm &&
+          participant.raceStatus !== "finished" &&
+          typing.started &&
+          room.text
+        ) {
+          const duration = getBotRaceDurationMs(
+            room.text.content.length,
+            participant.botTargetWpm,
+          );
+          const progress = getBotRaceProgress(elapsedMs, duration);
+          return {
+            ...participant,
+            progress,
+            currentCharacter: Math.round(
+              (progress / 100) * room.text.content.length,
+            ),
+            wpm: participant.botTargetWpm,
+            raceStatus: progress >= 100 ? "finished" : "racing",
+          };
+        }
+        return participant.userId === viewerId && typing.started
           ? {
               ...participant,
               progress: metrics.progress,
@@ -211,12 +237,14 @@ export function RaceRoomClient({
               totalKeystrokes: typing.totalKeystrokes,
               wpm: metrics.wpm,
             }
-          : participant,
-      ),
+          : participant;
+      }),
     [
+      elapsedMs,
       metrics.progress,
       metrics.wpm,
       participants,
+      room.text,
       typing.currentCharacter,
       typing.incorrectKeystrokes,
       typing.started,
@@ -260,13 +288,9 @@ export function RaceRoomClient({
       content: String(rawText.content),
       difficulty: String(rawText.difficulty),
     };
-    const countdownSeconds = Math.max(
-      1,
-      Number(payload.countdownSeconds) || 5,
-    );
+    const countdownSeconds = Math.max(1, Number(payload.countdownSeconds) || 5);
     startSyncRef.current = false;
-    countdownDeadlineRef.current =
-      performance.now() + countdownSeconds * 1000;
+    countdownDeadlineRef.current = performance.now() + countdownSeconds * 1000;
     dispatch({ type: "RESET", content: text.content });
     setCountdown(Math.ceil(countdownSeconds));
     setRoom((current) => ({
@@ -783,7 +807,11 @@ export function RaceRoomClient({
                   </p>
                   <p className="mt-1 font-mono text-xs text-muted">
                     @{participant.username} · {participant.rating} rating ·{" "}
-                    {onlineIds.has(participant.userId) ? "online" : "offline"}
+                    {participant.isBot
+                      ? "bot sistem"
+                      : onlineIds.has(participant.userId)
+                        ? "online"
+                        : "offline"}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -796,21 +824,23 @@ export function RaceRoomClient({
                       MENUNGGU
                     </span>
                   )}
-                  {isHost && participant.userId !== viewerId && (
-                    <button
-                      aria-label={`Keluarkan ${participant.username}`}
-                      onClick={() => {
-                        setKickError("");
-                        setKickTarget({
-                          userId: participant.userId,
-                          name: participant.displayName,
-                        });
-                      }}
-                      className="text-muted hover:text-danger"
-                    >
-                      <UserMinus size={17} />
-                    </button>
-                  )}
+                  {isHost &&
+                    participant.userId !== viewerId &&
+                    !participant.isBot && (
+                      <button
+                        aria-label={`Keluarkan ${participant.username}`}
+                        onClick={() => {
+                          setKickError("");
+                          setKickTarget({
+                            userId: participant.userId,
+                            name: participant.displayName,
+                          });
+                        }}
+                        className="text-muted hover:text-danger"
+                      >
+                        <UserMinus size={17} />
+                      </button>
+                    )}
                 </div>
               </div>
             ))}
@@ -939,9 +969,14 @@ export function RaceRoomClient({
                   }
                 >
                   {participant.username}
+                  {participant.isBot && (
+                    <span className="ml-1 text-[9px] text-moss">BOT</span>
+                  )}
                   <small className="mt-1 block text-[9px] uppercase text-white/35">
                     {participant.raceStatus === "finished"
-                      ? `FINISH #${participant.placement}`
+                      ? participant.placement
+                        ? `FINISH #${participant.placement}`
+                        : "FINISH"
                       : participant.raceStatus}
                   </small>
                 </span>

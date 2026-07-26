@@ -32,7 +32,7 @@ export default async function RaceRoomPage({
     supabase
       .from("race_participants")
       .select(
-        "id,user_id,is_ready,connection_status,race_status,progress,current_character,incorrect_keystrokes,total_keystrokes,last_sequence,wpm,placement,finish_nonce,profiles(username,display_name,avatar_seed,rating)",
+        "id,user_id,is_ready,is_bot,bot_target_wpm,connection_status,race_status,progress,current_character,incorrect_keystrokes,total_keystrokes,last_sequence,wpm,placement,finish_nonce,profiles(username,display_name,avatar_seed,rating)",
       )
       .eq("race_room_id", room.id)
       .not("race_status", "in", "(left,kicked)")
@@ -60,6 +60,10 @@ export default async function RaceRoomPage({
         displayName: profile?.display_name ?? "Pemain",
         avatarSeed: profile?.avatar_seed ?? String(participant.user_id),
         rating: Number(profile?.rating ?? 1000),
+        isBot: Boolean(participant.is_bot),
+        botTargetWpm: participant.bot_target_wpm
+          ? Number(participant.bot_target_wpm)
+          : null,
         isReady: Boolean(participant.is_ready),
         connectionStatus: String(participant.connection_status),
         raceStatus: String(participant.race_status),
@@ -94,6 +98,7 @@ export default async function RaceRoomPage({
         username: participant.username,
         displayName: participant.displayName,
         avatarSeed: participant.avatarSeed,
+        isBot: participant.isBot,
         placement: result ? Number(result.placement) : null,
         wpm: result ? Number(result.wpm) : null,
         accuracy: result ? Number(result.accuracy) : null,

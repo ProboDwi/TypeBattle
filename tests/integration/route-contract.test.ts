@@ -13,6 +13,7 @@ const requiredRoutes = [
   "app/api/races/[id]/finish/route.ts",
   "app/api/races/[id]/sync/route.ts",
   "app/api/matchmaking/join/route.ts",
+  "app/api/matchmaking/bot/route.ts",
 ];
 
 describe("server route integration contract", () => {

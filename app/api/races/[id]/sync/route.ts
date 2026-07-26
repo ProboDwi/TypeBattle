@@ -21,6 +21,9 @@ export async function POST(
       return apiError("Sinkronisasi terlalu sering.", 429);
     }
 
+    await auth.supabase.rpc("finish_due_race_bot", {
+      p_room_id: id,
+    });
     const { data, error } = await auth.supabase.rpc("sync_race_state", {
       p_room_id: id,
     });

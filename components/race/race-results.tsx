@@ -7,6 +7,7 @@ export interface RaceResultView {
   username: string;
   displayName: string;
   avatarSeed: string;
+  isBot: boolean;
   placement: number | null;
   wpm: number | null;
   accuracy: number | null;
@@ -51,6 +52,11 @@ export function RaceResults({
                 className="mx-auto mt-4 size-12"
               />
               <p className="mt-3 font-bold">{item.displayName}</p>
+              {item.isBot && (
+                <span className="mt-2 inline-block rounded-full border border-moss/40 px-2 py-1 font-mono text-[9px] text-moss">
+                  BOT SISTEM
+                </span>
+              )}
               <p className="mt-1 font-mono text-xs text-white/45">
                 @{item.username}
               </p>
@@ -93,6 +99,11 @@ export function RaceResults({
                       />
                       <div>
                         <p className="font-bold">{item.displayName}</p>
+                        {item.isBot && (
+                          <span className="font-mono text-[9px] text-moss">
+                            BOT SISTEM
+                          </span>
+                        )}
                         <p className="font-mono text-xs text-muted">
                           @{item.username}
                         </p>

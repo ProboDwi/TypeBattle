@@ -54,6 +54,10 @@ const fiveSecondRaceCountdown = readFileSync(
   resolve("supabase/migrations/202607240018_five_second_race_countdown.sql"),
   "utf8",
 );
+const quickRaceBot = readFileSync(
+  resolve("supabase/migrations/202607260019_quick_race_bot.sql"),
+  "utf8",
+);
 
 describe("Supabase integration contract", () => {
   it("creates profiles automatically after registration", () => {
@@ -136,9 +140,7 @@ describe("Supabase integration contract", () => {
     expect(levelLeaderboard).toContain(
       "create or replace view public.leaderboard_level",
     );
-    expect(levelLeaderboard).toContain(
-      "order by level desc, experience desc",
-    );
+    expect(levelLeaderboard).toContain("order by level desc, experience desc");
     expect(levelLeaderboard).toContain(
       "grant select on public.leaderboard_level to anon, authenticated",
     );
@@ -162,5 +164,17 @@ describe("Supabase integration contract", () => {
     );
     expect(fiveSecondRaceCountdown).toContain("set countdown_seconds = 5");
     expect(fiveSecondRaceCountdown).toContain("where status = 'waiting'");
+  });
+
+  it("adds an authoritative fallback bot without exposing it on leaderboards", () => {
+    expect(quickRaceBot).toContain(
+      "function public.matchmake_with_bot(p_bot_user_id uuid)",
+    );
+    expect(quickRaceBot).toContain(
+      "function public.finish_due_race_bot(p_room_id uuid)",
+    );
+    expect(quickRaceBot).toContain("interval '10 seconds'");
+    expect(quickRaceBot).toContain("where not is_bot");
+    expect(quickRaceBot).toContain("'Quick Race vs KeyBot'");
   });
 });
