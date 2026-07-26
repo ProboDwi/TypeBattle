@@ -58,6 +58,14 @@ const quickRaceBot = readFileSync(
   resolve("supabase/migrations/202607260019_quick_race_bot.sql"),
   "utf8",
 );
+const multipleQuickRaceBots = readFileSync(
+  resolve("supabase/migrations/202607260020_multiple_quick_race_bots.sql"),
+  "utf8",
+);
+const threePlayerQuickRace = readFileSync(
+  resolve("supabase/migrations/202607260021_three_player_quick_race.sql"),
+  "utf8",
+);
 
 describe("Supabase integration contract", () => {
   it("creates profiles automatically after registration", () => {
@@ -176,5 +184,34 @@ describe("Supabase integration contract", () => {
     expect(quickRaceBot).toContain("interval '10 seconds'");
     expect(quickRaceBot).toContain("where not is_bot");
     expect(quickRaceBot).toContain("'Quick Race vs KeyBot'");
+  });
+
+  it("introduces support for multiple bot participants", () => {
+    expect(multipleQuickRaceBots).toContain(
+      "function public.matchmake_with_bots(p_bot_user_ids uuid[])",
+    );
+    expect(multipleQuickRaceBots).toContain("cardinality(p_bot_user_ids) < 2");
+    expect(multipleQuickRaceBots).toContain("'botCount', bot_count");
+    expect(multipleQuickRaceBots).toContain("'playerCount', bot_count + 1");
+  });
+
+  it("fills every Quick Race to exactly three participants, prioritizing humans", () => {
+    expect(threePlayerQuickRace).toContain(
+      "candidate_ids uuid[] := '{}'::uuid[]",
+    );
+    expect(threePlayerQuickRace).toContain(
+      "required_bot_count := 2 - human_opponent_count",
+    );
+    expect(threePlayerQuickRace).toContain(
+      "if cardinality(candidate_ids) < 2 then",
+    );
+    expect(threePlayerQuickRace).toContain("'humanCount', 3");
+    expect(threePlayerQuickRace).toContain("'playerCount', 3");
+    expect(threePlayerQuickRace).toContain(
+      "when required_bot_count = 1 then 'mixed'",
+    );
+    expect(threePlayerQuickRace).toContain(
+      "pg_catalog.pg_advisory_xact_lock",
+    );
   });
 });

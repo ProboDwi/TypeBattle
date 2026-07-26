@@ -15,6 +15,14 @@ describe("Quick Race bot provisioning", () => {
     );
   });
 
+  it("provisions two distinct system bots", () => {
+    expect(botRoute).toContain("const BOT_ACCOUNTS = [");
+    expect(botRoute).toContain("KeyBot Alpha");
+    expect(botRoute).toContain("KeyBot Beta");
+    expect(botRoute).toContain('rpc("matchmake_with_bots"');
+    expect(botRoute).toContain("p_bot_user_ids: botIds");
+  });
+
   it("records provisioning failures in server logs", () => {
     expect(botRoute).toContain(
       'console.error("[matchmaking/bot] Gagal menyiapkan KeyBot", error)',

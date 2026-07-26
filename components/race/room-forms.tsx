@@ -243,7 +243,7 @@ export function QuickMatchButton() {
     } else {
       setStatus("waiting");
       setMessage(
-        "Mencari pemain dengan rating berdekatan. Jika belum ditemukan dalam 10 detik, KeyBot akan masuk.",
+        "Mencari dua pemain dengan rating berdekatan. Setelah 10 detik, setiap slot yang masih kosong akan diisi KeyBot.",
       );
     }
   }
