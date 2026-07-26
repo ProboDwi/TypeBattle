@@ -18,7 +18,7 @@ async function ensureRaceBot() {
 
   const created = await admin.auth.admin.createUser({
     email: "race-bot@probodwi.my.id",
-    password: `${randomUUID()}-${randomUUID()}`,
+    password: `Bot-${randomUUID()}`,
     email_confirm: true,
     user_metadata: {
       username: "keylane_bot",
@@ -73,7 +73,8 @@ export async function POST() {
         ? "Pemain ditemukan."
         : "Tidak ada pemain lain. KeyBot menjadi lawanmu.",
     );
-  } catch {
+  } catch (error) {
+    console.error("[matchmaking/bot] Gagal menyiapkan KeyBot", error);
     return apiError("Lawan bot belum tersedia.", 503);
   }
 }
